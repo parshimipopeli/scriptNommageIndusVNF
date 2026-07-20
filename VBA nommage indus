@@ -1,157 +1,324 @@
-Option Explicit
+Sub NommageIndus()
 
-Sub TraiterNommage()
+    ' Déclaration des variables pour les trois feuilles du fichier
+    Dim wsSource As Worksheet
+    Dim wsNommage As Worksheet
+    Dim wsDest As Worksheet
 
-    Dim src As Worksheet ' https://voiesnavigablesdefrance.sharepoint.com/:x:/r/sites/msteams_3356f9_877852-MaintenanceSI-PrimtreDSIN/_layouts/15/Doc.aspx?sourcedoc=%7B74E5DA33-8882-4739-AB4E-8418424630AB%7D&file=Canal%20lat%C3%A9ral%20Garonne%20-%20Plan%20adressage%20Simplifie%20-%20V250131.xlsx&action=default&mobileredirect=true
-    Dim dst As Worksheet ' https://voiesnavigablesdefrance.sharepoint.com/:x:/r/sites/msteams_3356f9_877852-MaintenanceSI-PrimtreDSIN/_layouts/15/Doc.aspx?sourcedoc=%7BBBDED183-543C-4CDB-AF28-FBA2951A823A%7D&file=2025-12-15%20-%20Liste%20Supervision%20-%20Gambsheim%20%E2%80%93%20Copie.xlsm&action=default&mobileredirect=true
-    Dim map As Worksheet ' https://voiesnavigablesdefrance.sharepoint.com/:x:/r/sites/msteams_3356f9_877852-MaintenanceSI-PrimtreDSIN/_layouts/15/Doc.aspx?sourcedoc=%7B6D4ADB94-007C-4A81-8A6A-381B96456B85%7D&file=VNF%20-%20Convention%20de%20nommage%20Informatique%20Industrielle-v1.0%20%E2%80%93%20Copie.xlsm&action=default&mobileredirect=true
-    Dim lastSrc As Long, lastMap As Long, i As Long
-    Dim nomComplet As String, nomCourt As String
-    Dim partLong As String, partCourt As String
-    Dim found As Boolean
-    
-    ' --- Feuilles Excel ---
-    Set src = ThisWorkbook.Sheets("Source")
-    Set map = ThisWorkbook.Sheets("Nommage")
-    Set dst = ThisWorkbook.Sheets("Destination")
-    
-    lastSrc = src.Cells(src.Rows.Count, "A").End(xlUp).Row
-    lastMap = map.Cells(map.Rows.Count, "A").End(xlUp).Row
-    
-    dst.Cells.ClearContents
-    dst.Range("A1:B1") = Array("IP", "NomCourt")
-    
-    Dim ligneDst As Long: ligneDst = 2
+    ' Variables de comptage
+    Dim derniereLigneSource As Long
+    Dim derniereLigneNommage As Long
+    Dim i As Long, j As Long, k As Long
+    Dim ligneDest As Long
 
-    ' --- Boucle sur chaque ligne du fichier source ---
-    For i = 2 To lastSrc
+    ' Variable de recherche
+    Dim trouveNom As Range
+
+    ' Variables chaînes
+    Dim nomOuvrage As String
+    Dim codeF As String
+    Dim valeurJ As String
+    Dim adresseIP As String
+    Dim codeNomOuvrage As String
+    Dim dernierIP As String
+    Dim DeuxDernierOctet As String
+    Dim ValeurRecherche As String
+    Dim ValeurNommage As String
+    Dim trigramme As String
+    Dim poller As String
+    Dim communauteSnmp As String
+    Dim domaine As String
+    Dim systeme As String
+    Dim hote As String
+    Dim sys As String
+
+    ' Objets
+    Dim regEx As Object
+    Dim valeurTrouvee As String
+
+    ' Tableaux
+    Dim splitIP As Variant
     
-        nomComplet = src.Cells(i, 2).Value
-        found = False
-        
-        ' --- Cherche une correspondance dans la table de nommage ---
-        Dim j As Long
-        For j = 2 To lastMap
-        
-            partLong = map.Cells(j, 1).Value
-            partCourt = map.Cells(j, 2).Value
-            
-            If InStr(1, nomComplet, partLong, vbTextCompare) > 0 Then
-                ' remplace uniquement la partie longue par la partie courte
-                nomCourt = Replace(nomComplet, partLong, partCourt)
-                found = True
-                Exit For
+    ' Gestion correspondance
+    Dim correspondance As Boolean
+
+    ' Compteur
+    Dim id As Long
+    id = 1
+
+    ' Variables à adapter en fonction du PCC
+    poller = "Poller-PCC_GAMBSHEIM"
+    communauteSnmp = "PccGAM"
+
+    ' Liaison feuilles
+    Set wsSource = ThisWorkbook.Sheets("Source_GAMBSHEIM")
+    Set wsNommage = ThisWorkbook.Sheets("NommageBis")
+    Set wsDest = ThisWorkbook.Sheets("Destination")
+
+    ' Première ligne d'écriture
+    ligneDest = 2
+
+    ' Dernières lignes
+    derniereLigneSource = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+    
+
+    ' recherche sur colonne K (IP)
+    derniereLigneNommage = wsNommage.Cells(wsNommage.Rows.Count, 11).End(xlUp).Row
+
+    ' Boucle principale source
+    For i = 2 To derniereLigneSource
+
+        nomOuvrage = Trim(wsSource.Cells(i, 2).Value)
+
+        If nomOuvrage <> "" Then
+
+            ' Recherche du nom ouvrage colonne H
+            Set trouveNom = wsNommage.Columns(8).Find( _
+                                What:=nomOuvrage, _
+                                LookAt:=xlPart, _
+                                MatchCase:=False)
+
+            If Not trouveNom Is Nothing Then
+
+                codeNomOuvrage = wsNommage.Cells(trouveNom.Row, 7).Value
+                codeF = wsNommage.Cells(trouveNom.Row, 6).Value
+                nomOuvrage = wsNommage.Cells(trouveNom.Row, 8).Value
+
+               ' Recherche trigramme
+
+                Set regEx = CreateObject("VBScript.RegExp")
+
+                regEx.Pattern = "\d+(\.\d+)?"
+                regEx.Global = False
+
+                If regEx.Test(nomOuvrage) Then
+
+                    trigramme = Replace(regEx.Execute(nomOuvrage)(0).Value, ".", "")
+                    trigramme = Format(CLng(trigramme), "000")
+
+                Else
+
+                    trigramme = GenererTrigramme(nomOuvrage)
+
+                End If
+                                
+                
+                ' Parcours des colonnes IP source
+                For j = 6 To 50
+
+                    adresseIP = Trim(wsSource.Cells(i, j).Value)
+
+                    If adresseIP <> "" Then
+
+                        ' Suppression masque réseau
+                        adresseIP = Split(adresseIP, "/")(0)
+
+                        ' Découpage IP
+                        splitIP = Split(adresseIP, ".")
+
+                        dernierIP = splitIP(3)
+
+                        DeuxDernierOctet = splitIP(2) & "." & splitIP(3)
+
+                        ' Construction clé recherche
+                        If splitIP(2) = "14" _
+                        Or splitIP(2) = "17" _
+                        Or splitIP(2) = "18" _
+                        Or splitIP(2) = "19" _
+                        Or splitIP(2) = "255" Then
+
+                            ValeurRecherche = DeuxDernierOctet
+                            Debug.Print DeuxDernierOctet
+
+                        Else
+
+                            ValeurRecherche = dernierIP
+                            Debug.Print dernierIP
+
+                        End If
+
+                        correspondance = False
+                        
+                       ' Recherche exacte dans la colonne K du nommage
+                       For k = 3 To derniereLigneNommage
+
+                        ValeurNommage = Trim(wsNommage.Cells(k, 11).Value)
+                        If InStr(1, ValeurNommage, ValeurRecherche, vbTextCompare) > 0 Then
+
+                            'Debug.Print ">>> TROUVE ligne " & k & " : " & ValeurNommage
+
+                        correspondance = True
+
+                                valeurJ = wsNommage.Cells(k, 10).Value
+                                domaine = wsNommage.Cells(k, 13).Value
+                                systeme = wsNommage.Cells(k, 12).Value
+
+                                hote = Format(codeF, "00") & codeNomOuvrage & valeurJ
+                                'Debug.Print hote
+
+                                
+                                ' Ecriture feuille Destination
+                                
+                                
+                                
+                                wsDest.Cells(ligneDest, 8).Value = UCase(hote)
+                                wsDest.Cells(ligneDest, 11).Value = adresseIP
+                                wsDest.Cells(ligneDest, 2).Value = Date
+                                wsDest.Cells(ligneDest, 5).Value = UCase(nomOuvrage)
+                                wsDest.Cells(ligneDest, 6).Value = UCase(domaine)
+                                wsDest.Cells(ligneDest, 7).Value = UCase(systeme)
+                                wsDest.Cells(ligneDest, 9).Value = trigramme
+                                
+                                Debug.Print "Trigramme >>>>>>> " & trigramme
+                                
+                                wsDest.Cells(ligneDest, 10).Value = _
+                                    UCase(Format(codeF, "00") & _
+                                    codeNomOuvrage & _
+                                    valeurJ & "." & _
+                                    trigramme & ".V2I")
+
+                                wsDest.Cells(ligneDest, 14).Value = poller
+                                wsDest.Cells(ligneDest, 17).Value = communauteSnmp
+
+                                wsDest.Cells(ligneDest, 1).Value = id
+
+                                id = id + 1
+
+                                sys = LCase(systeme)
+
+                                Select Case True
+
+                                    Case InStr(sys, "camera") > 0 _
+                                    Or InStr(sys, "caméra") > 0 _
+                                    Or InStr(sys, "haut") > 0 _
+                                    Or InStr(sys, "interphone") > 0 _
+                                    Or InStr(sys, "automate sofrel") > 0
+
+                                        wsDest.Cells(ligneDest, 12).Value = "C3"
+
+                                    Case InStr(sys, "vm") > 0 _
+                                    Or InStr(sys, "scada") > 0 _
+                                    Or InStr(sys, "archiveur") > 0 _
+                                    Or InStr(sys, "automate") > 0
+
+                                        wsDest.Cells(ligneDest, 12).Value = "C1"
+
+                                End Select
+
+                                '==============================
+                                ' Mise en forme OK
+                                '==============================
+
+                                With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+
+                                    .Font.Color = RGB(0, 0, 0)
+                                    .Font.Bold = True
+
+                                End With
+
+
+
+                                ligneDest = ligneDest + 1
+
+
+                                Exit For
+
+
+                            End If
+
+
+                        Next k
+
+
+
+                        '===================================
+                        ' Aucune correspondance trouvée
+                        '===================================
+
+                        If Not correspondance Then
+
+
+                            wsDest.Cells(ligneDest, 8).Value = _
+                                nomOuvrage & " " & adresseIP & _
+                                " - Aucune correspondance IP dans nommage !!!"
+
+
+
+                            With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+
+                                .Font.Color = RGB(192, 0, 0)
+                                .Font.Bold = True
+
+                            End With
+
+
+
+                            ligneDest = ligneDest + 1
+
+
+
+                        End If
+
+
+
+                    End If
+
+
+
+                Next j
+
+
+
             End If
-        Next j
-        
-        If Not found Then nomCourt = nomComplet ' si pas de correspondance trouvée
-        
-        ' --- Écrit dans la destination ---
-        dst.Cells(ligneDst, 1).Value = src.Cells(i, 1).Value        ' IP
-        dst.Cells(ligneDst, 2).Value = nomCourt                     ' Nom court
-        ligneDst = ligneDst + 1
+
+
+
+        End If
+
+
+
     Next i
 
-    MsgBox "Traitement terminé !", vbInformation
+
+
+    MsgBox "Traitement terminé. " & _
+           (ligneDest - 2) & _
+           " ligne(s) écrite(s).", vbInformation
 
 End Sub
 
+Function GenererTrigramme(nomOuvrage As String) As String
+
+    Dim mots() As String
+    Dim element As Variant
+    Dim trigramme As String
+
+    mots = Split(nomOuvrage, " ")
+
+    For Each element In mots
+    
+
+        Select Case LCase(Trim(element))
+
+            Case "ecluse", "écluse", _
+                 "barrage", "ouvrage", _
+                 "de", "du", "des", _
+                 "la", "le", "les"
+
+                ' Ignoré
+
+            Case Else
+
+                trigramme = trigramme & UCase(Left(element, 1))
+                
+
+        End Select
+
+    Next element
+
+    GenererTrigramme = Left(trigramme, 3)
+    Debug.Print "Résultat final : " & GenererTrigramme
+
+End Function
 
 
-
-
-
-
- Explication détaillée du code
-ShellOption ExplicitAfficher plus de lignes
-→ Oblige à déclarer toutes les variables, évite les erreurs.
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Sub TraiterNommage()Afficher plus de lignes
-→ Début de la procédure nommée TraiterNommage.
-
-🟩 Déclaration des variables
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Dim src As Worksheet ' fichier sourceDim dst As Worksheet ' fichier destinationDim map As Worksheet ' fichier nommageAfficher plus de lignes
-→ Trois objets Worksheet = trois feuilles Excel utilisées : Source, Destination, Nommage.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Dim lastSrc As Long, lastMap As Long, i As LongAfficher plus de lignes
-→ Variables pour les numéros de dernière ligne et l’index de boucle.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Dim nomComplet As String, nomCourt As StringDim partLong As String, partCourt As StringDim found As BooleanAfficher plus de lignes
-→ Variables pour le nom complet, le nom modifié, les morceaux à remplacer et un indicateur de correspondance.
-
-🟩 Références vers les feuilles
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Set src = ThisWorkbook.Sheets("Source")Set map = ThisWorkbook.Sheets("Nommage")Set dst = ThisWorkbook.Sheets("Destination")Afficher plus de lignes
-→ Le programme identifie les feuilles par leur nom.
-
-🟩 Détection des dernières lignes utilisées
-ShelllastSrc = src.Cells(src.Rows.Count, "A").End(xlUp).RowAfficher plus de lignes
-→ Trouve la dernière ligne non vide dans la colonne A de Source.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.lastMap = map.Cells(map.Rows.Count, "A").End(xlUp).RowAfficher plus de lignes
-→ Trouve la dernière ligne non vide dans la colonne A de Nommage.
-
-🟩 Préparation de la feuille Destination
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.dst.Cells.ClearContentsAfficher plus de lignes
-→ Efface le contenu entier de la feuille Destination.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.dst.Range("A1:B1") = Array("IP", "NomCourt")Afficher plus de lignes
-→ Met des en-têtes dans A1 et B1.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Dim ligneDst As Long: ligneDst = 2Afficher plus de lignes
-→ Ligne où on commencera à écrire les résultats.
-
-🔵 BOUCLE PRINCIPALE SUR LE FICHIER SOURCE
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.For i = 2 To lastSrcAfficher plus de lignes
-→ Parcours de toutes les lignes de la feuille Source, depuis la ligne 2 (on ignore les en-têtes).
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.nomComplet = src.Cells(i, 2).Value``Afficher plus de lignes
-→ Récupère le nom complet en colonne B de Source.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.found = FalseAfficher plus de lignes
-→ Indique qu’aucune correspondance n’a été trouvée pour l’instant.
-
-🟣 Recherche de correspondance dans la feuille Nommage
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Dim j As LongFor j = 2 To lastMapAfficher plus de lignes
-→ Boucle sur chaque ligne du tableau de nommage.
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.partLong = map.Cells(j, 1).ValuepartCourt = map.Cells(j, 2).ValueAfficher plus de lignes
-→ partLong = texte à chercher
-→ partCourt = texte qui doit le remplacer
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.If InStr(1, nomComplet, partLong, vbTextCompare) > 0 ThenAfficher plus de lignes
-→ Vérifie si partLong apparaît quelque part dans nomComplet (recherche non sensible à la casse).
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.nomCourt = Replace(nomComplet, partLong, partCourt)Afficher plus de lignes
-→ Remplace uniquement la partie longue par la version courte.
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.found = TrueExit ForAfficher plus de lignes
-→ Indique qu’une correspondance a été trouvée
-→ Sort de la boucle j (on ne cherche pas plus loin).
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Next jAfficher plus de lignes
-→ Fin de la boucle de recherche dans Nommage.
-
-🟩 Si aucune correspondance trouvée
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.If Not found Then nomCourt = nomCompletAfficher plus de lignes
-→ Si aucun remplacement n’a été effectué → garder le nom original.
-
-🟩 Écriture du résultat dans Destination
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.dst.Cells(ligneDst, 1).Value = src.Cells(i, 1).ValueAfficher plus de lignes
-→ Colonne A = adresse IP provenant de Source.
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.dst.Cells(ligneDst, 2).Value = nomCourtAfficher plus de lignes
-→ Colonne B = nom court (ou nom complet si aucun changement).
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.ligneDst = ligneDst + 1Afficher plus de lignes
-→ Passe à la ligne suivante.
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.Next iAfficher plus de lignes
-→ Fin de la boucle sur toutes les lignes Source.
-
-🟩 Message final
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.MsgBox "Traitement terminé !", vbInformation``Afficher plus de lignes
-→ Affiche une boîte de dialogue pour indiquer que le traitement est terminé.
-
-Plain Textvba n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.End SubAfficher plus de lignes
-→ Fin de la macro.
-
-✅ Résumé simple
-Cette macro :
-
-Parcourt chaque ligne du fichier Source.
-Pour chaque nom complet, cherche si une partie du nom correspond à une des règles dans Nommage.
-Si oui → remplace la partie longue par une partie courte.
-Sinon → garde le nom original.
-Copie l’IP + nom transformé dans la feuille Destination.
