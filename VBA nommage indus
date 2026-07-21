@@ -322,29 +322,37 @@ Function GenererTrigramme(nomOuvrage As String) As String
     mots = Split(nomOuvrage, " ")
 
     For Each element In mots
-    
 
-        Select Case LCase(Trim(element))
+    Select Case LCase(Trim(element))
 
-            Case "ecluse", "écluse", _
-                 "barrage", "ouvrage", _
-                 "de", "du", "des", _
-                 "la", "le", "les"
+        Case "ecluse", "écluse", _
+             "barrage", "ouvrage", _
+             "de", "du", "des", _
+             "la", "le", "les"
 
-                ' Ignoré
+            ' Ignoré
 
-            Case Else
+        Case Else
 
-                trigramme = trigramme & UCase(Left(element, 1))
-                
+            If LCase(Left(Trim(element), 2)) = "l'" Then
 
-        End Select
+                trigramme = trigramme & UCase(Mid(Trim(element), 3, 3))
 
-    Next element
+            Else
+
+                trigramme = trigramme & UCase(Left(Trim(element), 3))
+
+            End If
+
+    End Select
+
+Next element
 
     GenererTrigramme = Left(trigramme, 3)
    ' Debug.Print "Résultat final : " & GenererTrigramme
 
 End Function
+
+
 
 
