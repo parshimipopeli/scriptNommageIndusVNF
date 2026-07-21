@@ -31,6 +31,7 @@ Sub NommageIndus()
     Dim systeme As String
     Dim hote As String
     Dim sys As String
+    Dim ligneErreur As Long
     
     Dim premiereLigneSource As Long
 
@@ -92,12 +93,11 @@ Sub NommageIndus()
 
             If trouveNom Is Nothing Then
             
-            wsDest.Cells(ligneDest, 8).Value = _
-                                nomOuvrage & " " & adresseIP & _
-                                " - Ouvrage non trouvé dans la base de données!!!!!!"
+                ligneErreur = wsDest.Cells(wsDest.Rows.Count, 8).End(xlUp).Row + 1
+                wsDest.Cells(ligneErreur, 8).Value = nomOuvrage & " - Ouvrage non trouvé dans la base de données"
             
             
-            'Debug.Print "Ouvrage non trouvé : " & nomOuvrage
+            Debug.Print "Ouvrage non trouvé : " & nomOuvrage
             
             Else
 
@@ -195,7 +195,7 @@ Sub NommageIndus()
                                 End If
                                 ' Ecriture feuille Destination
                                 
-                                Debug.Print nomHote
+                                'Debug.Print nomHote
                                 
                                 wsDest.Cells(ligneDest, 8).Value = UCase(nomHote)
                                 wsDest.Cells(ligneDest, 11).Value = adresseIP
@@ -352,7 +352,5 @@ Next element
    ' Debug.Print "Résultat final : " & GenererTrigramme
 
 End Function
-
-
 
 
