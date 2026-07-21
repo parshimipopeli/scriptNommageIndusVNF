@@ -271,7 +271,8 @@ Sub NommageIndus()
 
             End If
 
-
+            Else
+                wsDest.Cells(ligneDest, 5).Value = UCase("L'objet n'a pas été trouvé dans la base de données!!!")
 
         End If
 
