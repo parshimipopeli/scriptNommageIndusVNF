@@ -55,11 +55,11 @@ Sub NommageIndus()
     
     
     ' Variables à adapter en fonction du PCC
-    poller = "Poller-PCC_GAMBSHEIM"
-    communauteSnmp = "PccGAM"
+    poller = "Poller-PCC_Notre Dame de la Garenne"
+    communauteSnmp = "PccNDG"
 
     ' Liaison feuilles
-    Set wsSource = ThisWorkbook.Sheets("Source_GAMBSHEIM")
+    Set wsSource = ThisWorkbook.Sheets("Source_NDG")
     Set wsNommage = ThisWorkbook.Sheets("NommageBis")
     Set wsDest = ThisWorkbook.Sheets("Destination")
 
@@ -96,7 +96,7 @@ Sub NommageIndus()
                 ligneErreur = wsDest.Cells(wsDest.Rows.Count, 8).End(xlUp).Row + 1
                 wsDest.Cells(ligneErreur, 8).Value = nomOuvrage & " - Ouvrage non trouvé dans la base de données"
             
-            
+            ligneDest = ligneDest + 1
             Debug.Print "Ouvrage non trouvé : " & nomOuvrage
             
             Else
@@ -209,7 +209,7 @@ Sub NommageIndus()
                                 
                                 wsDest.Cells(ligneDest, 10).Value = _
                                     UCase(nomHote & _
-                                     ".V2I")
+                                    "." & trigramme & ".V2I")
 
                                 wsDest.Cells(ligneDest, 14).Value = poller
                                 wsDest.Cells(ligneDest, 17).Value = communauteSnmp
@@ -271,7 +271,7 @@ Sub NommageIndus()
 
                         If Not correspondance Then
 
-
+                            ligneErreur = wsDest.Cells(wsDest.Rows.Count, 8).End(xlUp).Row + 1
                             wsDest.Cells(ligneDest, 8).Value = _
                                 nomOuvrage & " " & adresseIP & _
                                 " - Aucune correspondance IP dans nommage !!!"
