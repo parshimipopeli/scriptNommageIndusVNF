@@ -32,6 +32,7 @@ Sub NommageIndus()
     Dim hote As String
     Dim sys As String
     Dim ligneErreur As Long
+    Dim IP As Long
     
     Dim premiereLigneSource As Long
 
@@ -55,11 +56,11 @@ Sub NommageIndus()
     
     
     ' Variables à adapter en fonction du PCC
-    poller = "Poller-PCC_Notre Dame de la Garenne"
-    communauteSnmp = "PccNDG"
+    poller = "Poller-PCC_GAMBSHEIM"
+    communauteSnmp = "PccGAM"
 
     ' Liaison feuilles
-    Set wsSource = ThisWorkbook.Sheets("Source_NDG")
+    Set wsSource = ThisWorkbook.Sheets("Source_GAMBSHEIM")
     Set wsNommage = ThisWorkbook.Sheets("NommageBis")
     Set wsDest = ThisWorkbook.Sheets("Destination")
 
@@ -125,7 +126,7 @@ Sub NommageIndus()
                                 
                 
                 ' Parcours des colonnes IP source
-                For j = 6 To 50
+                For j = 6 To 70
 
                     adresseIP = Trim(wsSource.Cells(i, j).Value)
 
@@ -146,6 +147,9 @@ Sub NommageIndus()
                         Or splitIP(2) = "17" _
                         Or splitIP(2) = "18" _
                         Or splitIP(2) = "19" _
+                        Or splitIP(2) = "12" _
+                        Or splitIP(2) = "13" _
+                        Or splitIP(2) = "24" _
                         Or splitIP(2) = "255" Then
 
                             ValeurRecherche = DeuxDernierOctet
@@ -218,26 +222,32 @@ Sub NommageIndus()
 
                                 id = id + 1
 
-                                sys = LCase(systeme)
-
-                                Select Case True
-
-                                    Case InStr(sys, "camera") > 0 _
-                                    Or InStr(sys, "caméra") > 0 _
-                                    Or InStr(sys, "haut") > 0 _
-                                    Or InStr(sys, "interphone") > 0 _
-                                    Or InStr(sys, "automate sofrel") > 0
-
-                                        wsDest.Cells(ligneDest, 12).Value = "C3"
-
-                                    Case InStr(sys, "vm") > 0 _
-                                    Or InStr(sys, "scada") > 0 _
-                                    Or InStr(sys, "archiveur") > 0 _
-                                    Or InStr(sys, "automate") > 0
-
+                                
+                                
+                                '==============================
+                                ' Gestion des criticités
+                                '==============================
+                                IP = LCase(dernierIP)
+                                DDIP = LCase(DeuxDernierOctet)
+                                
+                                
+                                Select Case IP
+                                   
+                                    Case 101 To 106
+                                        wsDest.Cells(ligneDest, 12).Value = "C2"
+                                    Case 109 To 117
+                                        wsDest.Cells(ligneDest, 12).Value = "C2"
+                                    Case 19 To 121
+                                        wsDest.Cells(ligneDest, 12).Value = "C2"
+                                    Case 98
+                                        wsDest.Cells(ligneDest, 12).Value = "C2"
+                                   Case Else
                                         wsDest.Cells(ligneDest, 12).Value = "C1"
-
-                                End Select
+                                 End Select
+                                 
+                                 
+                                 
+                                
 
                                 '==============================
                                 ' Mise en forme OK
@@ -352,5 +362,7 @@ Next element
    ' Debug.Print "Résultat final : " & GenererTrigramme
 
 End Function
+
+
 
 
