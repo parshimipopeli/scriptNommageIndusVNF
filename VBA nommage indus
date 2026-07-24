@@ -330,7 +330,8 @@ Function GenererTrigramme(nomOuvrage As String) As String
         Case "ecluse", "écluse", _
              "barrage", "ouvrage", _
              "de", "du", "des", _
-             "la", "le", "les"
+             "la", "le", "les", _
+             "pcc"
 
             ' Ignoré
 
