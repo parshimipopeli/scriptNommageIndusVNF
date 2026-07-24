@@ -33,6 +33,8 @@ Sub NommageIndus()
     Dim sys As String
     Dim ligneErreur As Long
     Dim IP As Long
+    Dim valeurs As Variant
+    Dim v As Variant
     
     Dim premiereLigneSource As Long
 
@@ -57,7 +59,7 @@ Sub NommageIndus()
     
     ' Variables à adapter en fonction du PCC
     poller = "Poller-PCC_GAMBSHEIM"
-    communauteSnmp = "PccGAM"
+    communauteSnmp = "PccGam"
 
     ' Liaison feuilles
     Set wsSource = ThisWorkbook.Sheets("Source_GAMBSHEIM")
@@ -165,114 +167,104 @@ Sub NommageIndus()
                         correspondance = False
                         
                        ' Recherche exacte dans la colonne K du nommage
-                       For k = 3 To derniereLigneNommage
+                      For k = 3 To derniereLigneNommage
 
-                        ValeurNommage = Trim(wsNommage.Cells(k, 11).Value)
-                        If InStr(1, ValeurNommage, ValeurRecherche, vbTextCompare) > 0 Then
+    correspondance = False
 
-                            'Debug.Print ">>> TROUVE ligne " & k & " : " & ValeurNommage
+    ValeurNommage = Trim(CStr(wsNommage.Cells(k, 12).Value))
 
-                        correspondance = True
+    'Debug.Print "Recherche : [" & ValeurRecherche & "]"
 
-                                valeurJ = wsNommage.Cells(k, 10).Value
-                                domaine = wsNommage.Cells(k, 13).Value
-                                systeme = wsNommage.Cells(k, 12).Value
+    For Each v In Split(ValeurNommage, "||")
 
-                                hote = Format(codeF, "00") & codeNomOuvrage & valeurJ
-                                'Debug.Print hote
+        v = Trim(CStr(v))
 
-                                
-                                nomHote = hote
-                                'Debug.Print nomHote
+        Debug.Print "Valeur : [" & v & "]"
 
-                                If dictHotes.Exists(nomHote) Then
-                                
-                                
-                                    dictHotes(nomHote) = dictHotes(nomHote) + 1
-                                    nomHote = nomHote & dictHotes(nomHote)
+        If StrComp(v, Trim(CStr(ValeurRecherche)), vbTextCompare) = 0 Then
+            'Debug.Print ">>> TROUVEE"
+            correspondance = True
+            Exit For
+        End If
 
-                                Else
+    Next v
 
-                                    dictHotes.Add nomHote, 1
-                                    nomHote = nomHote & "1"
+    If correspondance Then
 
-                                End If
-                                ' Ecriture feuille Destination
-                                
-                                'Debug.Print nomHote
-                                
-                                wsDest.Cells(ligneDest, 8).Value = UCase(nomHote)
-                                wsDest.Cells(ligneDest, 11).Value = adresseIP
-                                wsDest.Cells(ligneDest, 2).Value = Date
-                                wsDest.Cells(ligneDest, 5).Value = UCase(nomOuvrage)
-                                wsDest.Cells(ligneDest, 6).Value = UCase(domaine)
-                                wsDest.Cells(ligneDest, 7).Value = UCase(systeme)
-                                wsDest.Cells(ligneDest, 9).Value = trigramme
-                                
-                                'Debug.Print "Trigramme >>>>>>> " & trigramme
-                                
-                                wsDest.Cells(ligneDest, 10).Value = _
-                                    UCase(nomHote & _
-                                    "." & trigramme & ".V2I")
+        Debug.Print ">>> ValeurRecherche : " & ValeurRecherche
 
-                                wsDest.Cells(ligneDest, 14).Value = poller
-                                wsDest.Cells(ligneDest, 17).Value = communauteSnmp
+        valeurJ = wsNommage.Cells(k, 10).Value
+        domaine = wsNommage.Cells(k, 14).Value
+        systeme = wsNommage.Cells(k, 13).Value
 
-                                wsDest.Cells(ligneDest, 1).Value = id
+        hote = Format(codeF, "00") & codeNomOuvrage & valeurJ
+        nomHote = hote
 
-                                id = id + 1
+        If dictHotes.Exists(nomHote) Then
+            dictHotes(nomHote) = dictHotes(nomHote) + 1
+            nomHote = nomHote & dictHotes(nomHote)
+        Else
+            dictHotes.Add nomHote, 1
+            nomHote = nomHote & "1"
+        End If
 
-                                
-                                
-                                '==============================
-                                ' Gestion des criticités
-                                '==============================
-                                IP = LCase(dernierIP)
-                                DDIP = LCase(DeuxDernierOctet)
-                                
-                                
-                                Select Case IP
-                                   
-                                    Case 101 To 106
-                                        wsDest.Cells(ligneDest, 12).Value = "C2"
-                                    Case 109 To 117
-                                        wsDest.Cells(ligneDest, 12).Value = "C2"
-                                    Case 19 To 121
-                                        wsDest.Cells(ligneDest, 12).Value = "C2"
-                                    Case 98
-                                        wsDest.Cells(ligneDest, 12).Value = "C2"
-                                   Case Else
-                                        wsDest.Cells(ligneDest, 12).Value = "C1"
-                                 End Select
-                                 
-                                 
-                                 
-                                
+        '==============================
+        ' Ecriture feuille Destination
+        '==============================
 
-                                '==============================
-                                ' Mise en forme OK
-                                '==============================
+        wsDest.Cells(ligneDest, 8).Value = UCase(nomHote)
+        wsDest.Cells(ligneDest, 11).Value = adresseIP
+        wsDest.Cells(ligneDest, 2).Value = Date
+        wsDest.Cells(ligneDest, 5).Value = UCase(nomOuvrage)
+        wsDest.Cells(ligneDest, 6).Value = UCase(domaine)
+        wsDest.Cells(ligneDest, 7).Value = UCase(systeme)
+        wsDest.Cells(ligneDest, 9).Value = trigramme
 
-                                With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+        wsDest.Cells(ligneDest, 10).Value = _
+            UCase(nomHote & "." & trigramme & ".V2I")
 
-                                    .Font.Color = RGB(0, 0, 0)
-                                    .Font.Bold = True
+        wsDest.Cells(ligneDest, 14).Value = poller
+        wsDest.Cells(ligneDest, 17).Value = communauteSnmp
+        wsDest.Cells(ligneDest, 1).Value = id
 
-                                End With
+        id = id + 1
 
+        '==============================
+        ' Gestion des criticités
+        '==============================
 
+        IP = LCase(dernierIP)
+        DDIP = LCase(DeuxDernierOctet)
 
-                                ligneDest = ligneDest + 1
+        Select Case IP
+            Case 101 To 106
+                wsDest.Cells(ligneDest, 12).Value = "C2"
+            Case 109 To 117
+                wsDest.Cells(ligneDest, 12).Value = "C2"
+            Case 119 To 121
+                wsDest.Cells(ligneDest, 12).Value = "C2"
+            Case 98
+                wsDest.Cells(ligneDest, 12).Value = "C2"
+            Case Else
+                wsDest.Cells(ligneDest, 12).Value = "C1"
+        End Select
 
+        '==============================
+        ' Mise en forme
+        '==============================
 
-                                Exit For
+        With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+            .Font.Color = RGB(0, 0, 0)
+            .Font.Bold = True
+        End With
 
+        ligneDest = ligneDest + 1
 
-                            End If
+        Exit For
 
+    End If
 
-                        Next k
-
+Next k
 
 
                         '===================================
@@ -362,6 +354,8 @@ Next element
    ' Debug.Print "Résultat final : " & GenererTrigramme
 
 End Function
+
+
 
 
 
