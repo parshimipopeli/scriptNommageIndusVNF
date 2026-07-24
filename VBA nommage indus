@@ -152,6 +152,7 @@ Sub NommageIndus()
                         Or splitIP(2) = "12" _
                         Or splitIP(2) = "13" _
                         Or splitIP(2) = "24" _
+                        Or splitIP(2) = "25" _
                         Or splitIP(2) = "255" Then
 
                             ValeurRecherche = DeuxDernierOctet
