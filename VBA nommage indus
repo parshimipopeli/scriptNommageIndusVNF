@@ -58,11 +58,11 @@ Sub NommageIndus()
     
     
     ' Variables à adapter en fonction du PCC
-    poller = "Poller-PCC_GAMBSHEIM"
-    communauteSnmp = "PccGam"
+    poller = "Poller-PCC_COMPIEGNE"
+    communauteSnmp = "PccCom"
 
     ' Liaison feuilles
-    Set wsSource = ThisWorkbook.Sheets("Source_GAMBSHEIM")
+    Set wsSource = ThisWorkbook.Sheets("Source_GB_OISE_CANALISEE")
     Set wsNommage = ThisWorkbook.Sheets("NommageBis")
     Set wsDest = ThisWorkbook.Sheets("Destination")
 
@@ -100,7 +100,7 @@ Sub NommageIndus()
                 wsDest.Cells(ligneErreur, 8).Value = nomOuvrage & " - Ouvrage non trouvé dans la base de données"
             
             ligneDest = ligneDest + 1
-            Debug.Print "Ouvrage non trouvé : " & nomOuvrage
+            ' Debug.Print "Ouvrage non trouvé : " & nomOuvrage
             
             Else
 
@@ -128,8 +128,7 @@ Sub NommageIndus()
                                 
                 
                 ' Parcours des colonnes IP source
-                For j = 6 To 70
-
+                For j = 6 To 200
                     adresseIP = Trim(wsSource.Cells(i, j).Value)
 
                     If adresseIP <> "" Then
@@ -153,8 +152,17 @@ Sub NommageIndus()
                         Or splitIP(2) = "13" _
                         Or splitIP(2) = "24" _
                         Or splitIP(2) = "25" _
-                        Or splitIP(2) = "255" Then
-
+                        Or splitIP(2) = "255" _
+                        Or splitIP(2) = "10" _
+                        Or splitIP(2) = "11" _
+                        Or splitIP(2) = "30" _
+                        Or splitIP(2) = "207" _
+                        Or splitIP(2) = "107" _
+                        Or splitIP(2) = "104" _
+                        Or splitIP(2) = "103" _
+                        Or splitIP(2) = "102" _
+                        Or splitIP(2) = "101" Then
+                            
                             ValeurRecherche = DeuxDernierOctet
                             'Debug.Print DeuxDernierOctet
 
@@ -166,6 +174,8 @@ Sub NommageIndus()
                         End If
 
                         correspondance = False
+                        Debug.Print "IP paloalto" & splitIP(2) = "10"
+
                         
                        ' Recherche exacte dans la colonne K du nommage
                       For k = 3 To derniereLigneNommage
@@ -180,7 +190,7 @@ Sub NommageIndus()
 
         v = Trim(CStr(v))
 
-        Debug.Print "Valeur : [" & v & "]"
+       ' Debug.Print "Valeur : [" & v & "]"
 
         If StrComp(v, Trim(CStr(ValeurRecherche)), vbTextCompare) = 0 Then
             'Debug.Print ">>> TROUVEE"
@@ -192,7 +202,7 @@ Sub NommageIndus()
 
     If correspondance Then
 
-        Debug.Print ">>> ValeurRecherche : " & ValeurRecherche
+        'Debug.Print ">>> ValeurRecherche : " & ValeurRecherche
 
         valeurJ = wsNommage.Cells(k, 10).Value
         domaine = wsNommage.Cells(k, 14).Value
