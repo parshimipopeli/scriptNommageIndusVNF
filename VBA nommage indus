@@ -1,330 +1,339 @@
+Option Explicit
+
 Sub NommageIndus()
 
-    ' Déclaration des variables pour les trois feuilles du fichier
     Dim wsSource As Worksheet
     Dim wsNommage As Worksheet
     Dim wsDest As Worksheet
 
-    ' Variables de comptage
     Dim derniereLigneSource As Long
     Dim derniereLigneNommage As Long
-    Dim i As Long, j As Long, k As Long
-    Dim ligneDest As Long
 
-    ' Variable de recherche
+    Dim i As Long
+    Dim j As Long
+    Dim ligneDest As Long
+    Dim id As Long
+
+    Dim nomOuvrage As String
+    Dim adresseIP As String
+
     Dim trouveNom As Range
 
-    ' Variables chaînes
-    Dim nomOuvrage As String
-    Dim codeF As String
-    Dim valeurJ As String
-    Dim adresseIP As String
     Dim codeNomOuvrage As String
-    Dim dernierIP As String
-    Dim DeuxDernierOctet As String
-    Dim ValeurRecherche As String
-    Dim ValeurNommage As String
+    Dim codeF As String
     Dim trigramme As String
-    Dim poller As String
-    Dim communauteSnmp As String
-    Dim domaine As String
-    Dim systeme As String
-    Dim hote As String
-    Dim sys As String
-    Dim ligneErreur As Long
-    Dim IP As Long
-    Dim valeurs As Variant
-    Dim v As Variant
-    
-    Dim premiereLigneSource As Long
 
-    ' Objets
-    Dim regEx As Object
-    Dim valeurTrouvee As String
+    Dim ligneNommage As Long
 
-    ' Tableaux
-    Dim splitIP As Variant
-    
-    ' Gestion correspondance
-    Dim correspondance As Boolean
-
-    ' Compteur
-    Dim id As Long
-    id = 1
-
-    ' Dictionnaire
     Dim dictHotes As Object
+
+    Const poller As String = "Poller-PCC_COMPIEGNE"
+    Const communaute As String = "PccCom"
+
+    Set wsSource = Sheets("Source_GB_OISE_CANALISEE")
+    Set wsNommage = Sheets("NommageBis")
+    Set wsDest = Sheets("Destination")
+
     Set dictHotes = CreateObject("Scripting.Dictionary")
-    
-    
-    ' Variables à adapter en fonction du PCC
-    poller = "Poller-PCC_COMPIEGNE"
-    communauteSnmp = "PccCom"
 
-    ' Liaison feuilles
-    Set wsSource = ThisWorkbook.Sheets("Source_GB_OISE_CANALISEE")
-    Set wsNommage = ThisWorkbook.Sheets("NommageBis")
-    Set wsDest = ThisWorkbook.Sheets("Destination")
-
-    ' Première ligne d'écriture
-    ligneDest = 2
-
-    ' Dernières lignes
     derniereLigneSource = wsSource.Cells(wsSource.Rows.Count, 2).End(xlUp).Row
-    
-    'Debug.Print "derniere ligne source >>>>>>>>>> " & derniereLigneSource
-    
-    premiereLigneSource = wsSource.Columns(2).Find("*", SearchDirection:=xlNext, SearchOrder:=xlByRows).Row
-    'Debug.Print "premiere ligne source >>>>>>>>>>>> " & premiereLigneSource
-
-    ' recherche sur colonne K (IP)
     derniereLigneNommage = wsNommage.Cells(wsNommage.Rows.Count, 11).End(xlUp).Row
 
-    ' Boucle principale source
+    ligneDest = 2
+    id = 1
+
+    Application.ScreenUpdating = False
+
     For i = 2 To derniereLigneSource
 
         nomOuvrage = Trim(wsSource.Cells(i, 2).Value)
-       ' Debug.Print "Nom Ouvrage >>>>>>>>>>>> " & nomOuvrage
 
         If nomOuvrage <> "" Then
 
-            ' Recherche du nom ouvrage colonne H
-            Set trouveNom = wsNommage.Columns(8).Find( _
-                                What:=nomOuvrage, _
-                                LookAt:=xlPart, _
-                                MatchCase:=False)
+            Set trouveNom = ChercherOuvrage(wsNommage, nomOuvrage)
 
             If trouveNom Is Nothing Then
-            
-                ligneErreur = wsDest.Cells(wsDest.Rows.Count, 8).End(xlUp).Row + 1
-                wsDest.Cells(ligneErreur, 8).Value = nomOuvrage & " - Ouvrage non trouvé dans la base de données"
-            
-            ligneDest = ligneDest + 1
-            ' Debug.Print "Ouvrage non trouvé : " & nomOuvrage
-            
+
+                EcrireErreur wsDest, ligneDest, _
+                    nomOuvrage & " - Ouvrage non trouvé dans la base"
+
+                ligneDest = ligneDest + 1
+
             Else
 
                 codeNomOuvrage = wsNommage.Cells(trouveNom.Row, 7).Value
                 codeF = wsNommage.Cells(trouveNom.Row, 6).Value
                 nomOuvrage = wsNommage.Cells(trouveNom.Row, 8).Value
 
-               ' Recherche trigramme
+                trigramme = GenererTrigramme(nomOuvrage)
 
-                Set regEx = CreateObject("VBScript.RegExp")
-
-                regEx.Pattern = "\d+(\.\d+)?"
-                regEx.Global = False
-
-                If regEx.Test(nomOuvrage) Then
-
-                    trigramme = Replace(regEx.Execute(nomOuvrage)(0).Value, ".", "")
-                    trigramme = Format(CLng(trigramme), "000")
-
-                Else
-
-                    trigramme = GenererTrigramme(nomOuvrage)
-
-                End If
-                                
-                
-                ' Parcours des colonnes IP source
                 For j = 6 To 200
+
                     adresseIP = Trim(wsSource.Cells(i, j).Value)
 
                     If adresseIP <> "" Then
 
-                        ' Suppression masque réseau
-                        adresseIP = Split(adresseIP, "/")(0)
+                        adresseIP = NettoyerIP(adresseIP)
 
-                        ' Découpage IP
-                        splitIP = Split(adresseIP, ".")
+                        ligneNommage = TrouverCorrespondanceIP( _
+                                            wsNommage, _
+                                            ConstruireCleRecherche(adresseIP), _
+                                            derniereLigneNommage)
 
-                        dernierIP = splitIP(3)
+                        If ligneNommage > 0 Then
 
-                        DeuxDernierOctet = splitIP(2) & "." & splitIP(3)
+                            AjouterEquipement _
+                                wsNommage, _
+                                wsDest, _
+                                ligneNommage, _
+                                ligneDest, _
+                                id, _
+                                nomOuvrage, _
+                                adresseIP, _
+                                trigramme, _
+                                codeF, _
+                                codeNomOuvrage, _
+                                dictHotes, _
+                                poller, _
+                                communaute
 
-                        ' Construction clé recherche
-                        If splitIP(2) = "14" _
-                        Or splitIP(2) = "17" _
-                        Or splitIP(2) = "18" _
-                        Or splitIP(2) = "19" _
-                        Or splitIP(2) = "12" _
-                        Or splitIP(2) = "13" _
-                        Or splitIP(2) = "24" _
-                        Or splitIP(2) = "25" _
-                        Or splitIP(2) = "255" _
-                        Or splitIP(2) = "10" _
-                        Or splitIP(2) = "11" _
-                        Or splitIP(2) = "30" _
-                        Or splitIP(2) = "207" _
-                        Or splitIP(2) = "107" _
-                        Or splitIP(2) = "104" _
-                        Or splitIP(2) = "103" _
-                        Or splitIP(2) = "102" _
-                        Or splitIP(2) = "101" Then
-                            
-                            ValeurRecherche = DeuxDernierOctet
-                            'Debug.Print DeuxDernierOctet
+                            ligneDest = ligneDest + 1
+                            id = id + 1
 
                         Else
 
-                            ValeurRecherche = dernierIP
-                            'Debug.Print dernierIP
-
-                        End If
-
-                        correspondance = False
-                        Debug.Print "IP paloalto" & splitIP(2) = "10"
-
-                        
-                       ' Recherche exacte dans la colonne K du nommage
-                      For k = 3 To derniereLigneNommage
-
-    correspondance = False
-
-    ValeurNommage = Trim(CStr(wsNommage.Cells(k, 12).Value))
-
-    'Debug.Print "Recherche : [" & ValeurRecherche & "]"
-
-    For Each v In Split(ValeurNommage, "||")
-
-        v = Trim(CStr(v))
-
-       ' Debug.Print "Valeur : [" & v & "]"
-
-        If StrComp(v, Trim(CStr(ValeurRecherche)), vbTextCompare) = 0 Then
-            'Debug.Print ">>> TROUVEE"
-            correspondance = True
-            Exit For
-        End If
-
-    Next v
-
-    If correspondance Then
-
-        'Debug.Print ">>> ValeurRecherche : " & ValeurRecherche
-
-        valeurJ = wsNommage.Cells(k, 10).Value
-        domaine = wsNommage.Cells(k, 14).Value
-        systeme = wsNommage.Cells(k, 13).Value
-
-        hote = Format(codeF, "00") & codeNomOuvrage & valeurJ
-        nomHote = hote
-
-        If dictHotes.Exists(nomHote) Then
-            dictHotes(nomHote) = dictHotes(nomHote) + 1
-            nomHote = nomHote & dictHotes(nomHote)
-        Else
-            dictHotes.Add nomHote, 1
-            nomHote = nomHote & "1"
-        End If
-
-        '==============================
-        ' Ecriture feuille Destination
-        '==============================
-
-        wsDest.Cells(ligneDest, 8).Value = UCase(nomHote)
-        wsDest.Cells(ligneDest, 11).Value = adresseIP
-        wsDest.Cells(ligneDest, 2).Value = Date
-        wsDest.Cells(ligneDest, 5).Value = UCase(nomOuvrage)
-        wsDest.Cells(ligneDest, 6).Value = UCase(domaine)
-        wsDest.Cells(ligneDest, 7).Value = UCase(systeme)
-        wsDest.Cells(ligneDest, 9).Value = trigramme
-
-        wsDest.Cells(ligneDest, 10).Value = _
-            UCase(nomHote & "." & trigramme & ".V2I")
-
-        wsDest.Cells(ligneDest, 14).Value = poller
-        wsDest.Cells(ligneDest, 17).Value = communauteSnmp
-        wsDest.Cells(ligneDest, 1).Value = id
-
-        id = id + 1
-
-        '==============================
-        ' Gestion des criticités
-        '==============================
-
-        IP = LCase(dernierIP)
-        DDIP = LCase(DeuxDernierOctet)
-
-        Select Case IP
-            Case 101 To 106
-                wsDest.Cells(ligneDest, 12).Value = "C2"
-            Case 109 To 117
-                wsDest.Cells(ligneDest, 12).Value = "C2"
-            Case 119 To 121
-                wsDest.Cells(ligneDest, 12).Value = "C2"
-            Case 98
-                wsDest.Cells(ligneDest, 12).Value = "C2"
-            Case Else
-                wsDest.Cells(ligneDest, 12).Value = "C1"
-        End Select
-
-        '==============================
-        ' Mise en forme
-        '==============================
-
-        With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
-            .Font.Color = RGB(0, 0, 0)
-            .Font.Bold = True
-        End With
-
-        ligneDest = ligneDest + 1
-
-        Exit For
-
-    End If
-
-Next k
-
-
-                        '===================================
-                        ' Aucune correspondance trouvée
-                        '===================================
-
-                        If Not correspondance Then
-
-                            ligneErreur = wsDest.Cells(wsDest.Rows.Count, 8).End(xlUp).Row + 1
-                            wsDest.Cells(ligneDest, 8).Value = _
+                            EcrireErreur wsDest, ligneDest, _
                                 nomOuvrage & " " & adresseIP & _
-                                " - Aucune correspondance IP dans nommage !!!"
-
-                            With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
-
-                                .Font.Color = RGB(192, 0, 0)
-                                .Font.Bold = True
-
-                            End With
-
-
+                                " - Aucune correspondance IP"
 
                             ligneDest = ligneDest + 1
 
-
-
-                        End If
                         End If
 
+                    End If
 
                 Next j
-
-
 
             End If
 
         End If
 
-
-
     Next i
 
-
+    Application.ScreenUpdating = True
 
     MsgBox "Traitement terminé. " & _
-           (ligneDest - 2) & _
-           " ligne(s) écrite(s).", vbInformation
+           ligneDest - 2 & _
+           " ligne(s) écrite(s)."
 
 End Sub
+
+Private Function ChercherOuvrage( _
+                    ws As Worksheet, _
+                    nomOuvrage As String) As Range
+
+    Set ChercherOuvrage = ws.Columns(8).Find( _
+                                What:=nomOuvrage, _
+                                LookAt:=xlPart, _
+                                MatchCase:=False)
+
+End Function
+
+    
+Private Function NettoyerIP( _
+                    adresseIP As String) As String
+
+    NettoyerIP = Split(adresseIP, "/")(0)
+
+End Function
+
+Private Function ConstruireCleRecherche( _
+                    adresseIP As String) As String
+
+    Dim ip() As String
+
+    ip = Split(adresseIP, ".")
+
+    Select Case ip(2)
+
+        Case "10", "11", "12", "13", _
+             "14", "17", "18", "19", _
+             "24", "25", "30", "255"
+
+            ConstruireCleRecherche = _
+                ip(2) & "." & ip(3)
+
+        Case Else
+
+            ConstruireCleRecherche = ip(3)
+
+    End Select
+
+End Function
+
+Private Function TrouverCorrespondanceIP( _
+                    wsNommage As Worksheet, _
+                    valeurRecherche As String, _
+                    derniereLigne As Long) As Long
+
+    Dim k As Long
+    Dim v As Variant
+    Dim valeur As String
+
+    For k = 3 To derniereLigne
+
+        valeur = Trim(wsNommage.Cells(k, 12).Value)
+
+        For Each v In Split(valeur, "||")
+
+            If StrComp(Trim(v), _
+                       valeurRecherche, _
+                       vbTextCompare) = 0 Then
+
+                TrouverCorrespondanceIP = k
+                Exit Function
+
+            End If
+
+        Next v
+
+    Next k
+
+End Function
+
+Private Function GenererNomHote( _
+                    dictHotes As Object, _
+                    codeF As String, _
+                    codeNomOuvrage As String, _
+                    valeurJ As String) As String
+
+    Dim baseNom As String
+
+    baseNom = Format(codeF, "00") & _
+              codeNomOuvrage & _
+              valeurJ
+
+    If dictHotes.Exists(baseNom) Then
+
+        dictHotes(baseNom) = _
+            dictHotes(baseNom) + 1
+
+    Else
+
+        dictHotes.Add baseNom, 1
+
+    End If
+
+    GenererNomHote = _
+        baseNom & dictHotes(baseNom)
+
+End Function
+
+Private Function ObtenirCriticite( _
+                    dernierOctet As Long) As String
+
+    Select Case dernierOctet
+
+        Case 98
+            ObtenirCriticite = "C2"
+
+        Case 101 To 106
+            ObtenirCriticite = "C2"
+
+        Case 109 To 117
+            ObtenirCriticite = "C2"
+
+        Case 119 To 121
+            ObtenirCriticite = "C2"
+
+        Case Else
+            ObtenirCriticite = "C1"
+
+    End Select
+
+End Function
+
+Private Sub AjouterEquipement( _
+                    wsNommage As Worksheet, _
+                    wsDest As Worksheet, _
+                    ligneNom As Long, _
+                    ligneDest As Long, _
+                    id As Long, _
+                    nomOuvrage As String, _
+                    adresseIP As String, _
+                    trigramme As String, _
+                    codeF As String, _
+                    codeNomOuvrage As String, _
+                    dictHotes As Object, _
+                    poller As String, _
+                    communaute As String)
+
+    Dim nomHote As String
+    Dim valeurJ As StringS
+    Dim domaine As String
+    Dim systeme As String
+    Dim dernierOctet As Long
+
+    valeurJ = wsNommage.Cells(ligneNom, 10).Value
+    domaine = wsNommage.Cells(ligneNom, 14).Value
+    systeme = wsNommage.Cells(ligneNom, 13).Value
+
+    nomHote = GenererNomHote( _
+                    dictHotes, _
+                    codeF, _
+                    codeNomOuvrage, _
+                    valeurJ)
+
+    dernierOctet = CLng(Split(adresseIP, ".")(3))
+
+    With wsDest
+
+        .Cells(ligneDest, 1).Value = id
+        .Cells(ligneDest, 2).Value = Date
+
+        .Cells(ligneDest, 5).Value = UCase(nomOuvrage)
+        .Cells(ligneDest, 6).Value = UCase(domaine)
+        .Cells(ligneDest, 7).Value = UCase(systeme)
+
+        .Cells(ligneDest, 8).Value = UCase(nomHote)
+        .Cells(ligneDest, 9).Value = trigramme
+
+        .Cells(ligneDest, 10).Value = _
+            UCase(nomHote & "." & trigramme & ".V2I")
+
+        .Cells(ligneDest, 11).Value = adresseIP
+        .Cells(ligneDest, 12).Value = ObtenirCriticite(dernierOctet)
+
+        .Cells(ligneDest, 14).Value = poller
+        .Cells(ligneDest, 17).Value = communaute
+
+    End With
+
+    With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+
+        .Font.Bold = True
+        .Font.Color = RGB(0, 0, 0)
+
+    End With
+
+End Sub
+
+Private Sub EcrireErreur( _
+                    wsDest As Worksheet, _
+                    ligneDest As Long, _
+                    messageErreur As String)
+
+    wsDest.Cells(ligneDest, 8).Value = messageErreur
+
+    With wsDest.Range("A" & ligneDest & ":R" & ligneDest)
+
+        .Font.Bold = True
+        .Font.Color = RGB(192, 0, 0)
+
+    End With
+
+End Sub
+
 
 Function GenererTrigramme(nomOuvrage As String) As String
 
@@ -366,9 +375,4 @@ Next element
    ' Debug.Print "Résultat final : " & GenererTrigramme
 
 End Function
-
-
-
-
-
 
